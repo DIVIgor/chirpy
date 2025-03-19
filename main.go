@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
@@ -25,6 +27,15 @@ func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	})
 }
 
+// path modifier for API calls
+func apiPath(reqMethod, path string) (modifiedPath string) {
+	if len(reqMethod) > 2 {
+		reqMethod = strings.ToUpper(reqMethod)
+		reqMethod = strings.TrimSpace(reqMethod) + " "
+	}
+	return fmt.Sprintf("%s/api%s", reqMethod, path)
+}
+
 
 func main() {
 	const filePathRoot string = "."
@@ -35,9 +46,10 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filePathRoot)))))
 
-	mux.HandleFunc("GET /healthz", handlerReadiness)
-	mux.HandleFunc("GET /metrics", apiCfg.handlerCountVisits)
-	mux.HandleFunc("POST /reset", apiCfg.handlerResetVisits)
+	mux.HandleFunc(apiPath("GET", "/healthz"), handlerReadiness)
+	mux.HandleFunc(apiPath("POST", "/validate_chirp"), handlerChirpValidation)
+	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerCountVisits)
+	mux.HandleFunc("POST /admin/reset", apiCfg.handlerResetVisits)
 
 	server := &http.Server {
 		Addr: ":" + port,
