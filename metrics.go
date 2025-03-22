@@ -17,11 +17,20 @@ func (cfg *apiConfig) handlerCountVisits(writer http.ResponseWriter, req *http.R
 </html>`, cfg.fileserverHits.Load())))
 }
 
-// Reset the number of requests to server
+// Reset the number of requests to server and users
 func (cfg *apiConfig) handlerResetVisits(writer http.ResponseWriter, req *http.Request) {
 	writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+	// check if the app in dev stage
+	if cfg.platform != "dev" {
+		writer.WriteHeader(http.StatusForbidden)
+		writer.Write([]byte("Forbidden"))
+		return
+	}
+
 	writer.WriteHeader(http.StatusOK)
 	writer.Write([]byte("Visitor counter has been reset."))
 
 	cfg.fileserverHits.Store(0)
+	cfg.dbQueries.ClearUsers(req.Context())
 }

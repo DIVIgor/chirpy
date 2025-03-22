@@ -22,7 +22,7 @@ func respWithErr(writer http.ResponseWriter, statusCode int, msg string, err err
 	respJSON(writer, statusCode, errResp{Err: msg})
 }
 
-// Form and send JSON-based response
+// Form and send JSON response
 func respJSON(writer http.ResponseWriter, statusCode int, payload interface{}) {
 	writer.Header().Set("Content-Type", "application/json")
 	resp, err := json.Marshal(payload)
