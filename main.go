@@ -27,6 +27,7 @@ type apiConfig struct {
 	platform       string // should be set in .env file (dev or prod)
 }
 
+// Count requests to the server (main paths only)
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		cfg.fileserverHits.Add(1)
@@ -47,12 +48,12 @@ func pathMod(reqMethod, section, path string) (modifiedPath string) {
 	return fmt.Sprintf("%s%s%s", reqMethod, section, path)
 }
 
-// api path modifier
+// API path modifier
 func apiPath(reqMethod, path string) (modifiedPath string) {
 	return pathMod(reqMethod, "/api", path)
 }
 
-// admin path modifier
+// Admin path modifier
 func adminPath(reqMethod, path string) (modifiedPath string) {
 	return pathMod(reqMethod, "/admin", path)
 }
@@ -75,17 +76,23 @@ func main() {
 	}
 	mux := http.NewServeMux()
 
-	// main path
+	// Main path
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filePathRoot)))))
-	// secondary paths
-	// API
+	// Secondary paths:
+	// • API:
+	// 	- server health
 	mux.HandleFunc(apiPath("GET", "/healthz"), handlerReadiness)
+	// 	- account
 	mux.HandleFunc(apiPath("POST", "/users"), apiCfg.handlerCreateUser)
+	mux.HandleFunc(apiPath("POST", "/login"), apiCfg.handlerLogin)
+	// 	- posts
 	mux.HandleFunc(apiPath("POST", "/chirps"), apiCfg.handlerCreateChirp)
 	mux.HandleFunc(apiPath("GET", "/chirps"), apiCfg.handlerGetChirpList)
 	mux.HandleFunc(apiPath("GET", "/chirps/{chirpID}"), apiCfg.handlerGetChirp)
-	// for admins
+	// • Administration:
+	// 	- metrics
 	mux.HandleFunc(adminPath("GET", "/metrics"), apiCfg.handlerCountVisits)
+	// 	- reset DB
 	mux.HandleFunc(adminPath("POST", "/reset"), apiCfg.handlerResetVisits)
 
 	server := &http.Server{
@@ -93,6 +100,7 @@ func main() {
 		Handler: mux,
 	}
 
+	// Simple info
 	log.Println("Serving files from", filePathRoot, "on port:", port)
 
 	log.Fatal(server.ListenAndServe())
