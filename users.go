@@ -32,6 +32,8 @@ func decodeCredentials(req *http.Request) (data userAuth, err error) {
 // Success response structure
 type response struct {
 	User
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
 }
 
 // Parsable user model for CRUD operations
@@ -83,17 +85,92 @@ func (cfg *apiConfig) handlerLogin(writer http.ResponseWriter, req *http.Request
 		return
 	}
 
-	user, usrErr := cfg.dbQueries.GetUser(req.Context(), data.Email)
-	pwdErr := auth.CheckPasswordHash(data.Password, user.HashedPassword)
-	if usrErr != nil || pwdErr != nil {
-		respWithErr(writer, http.StatusUnauthorized, "Incorrect email or password", nil)
+	user, err := cfg.dbQueries.GetUser(req.Context(), data.Email)
+	if err != nil {
+		respWithErr(writer, http.StatusUnauthorized, "Incorrect email or password", err)
+		return
+	}
+	err = auth.CheckPasswordHash(data.Password, user.HashedPassword)
+	if err != nil {
+		respWithErr(writer, http.StatusUnauthorized, "Incorrect email or password", err)
+		return
+	}
+
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
+	if err != nil {
+		respWithErr(writer, http.StatusInternalServerError, "Couldn't create access token", err)
+		return
+	}
+
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		respWithErr(writer, http.StatusInternalServerError, "Couldn't create refresh token", err)
+		return
+	}
+
+	// Refresh Token should expire in 60 days
+	savedToken, err := cfg.dbQueries.SaveRefreshToken(req.Context(), database.SaveRefreshTokenParams{
+		Token:     refreshToken,
+		UserID:    user.ID,
+		ExpiresAt: time.Now().UTC().Add(60 * 24 * time.Hour),
+	})
+	if err != nil {
+		respWithErr(writer, http.StatusInternalServerError, "Couldn't save refresh token", err)
 		return
 	}
 
 	respJSON(writer, http.StatusOK, response{
 		User: User{
-			ID:    user.ID,
-			Email: user.Email,
+			ID:        user.ID,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+			UpdatedAt: user.UpdatedAt,
 		},
+		Token:        accessToken,
+		RefreshToken: savedToken.Token,
 	})
+}
+
+func (cfg *apiConfig) handlerRefreshAccess(writer http.ResponseWriter, req *http.Request) {
+	type response struct {
+		Token string `json:"token"`
+	}
+	// get refresh token from headers and check refresh token format
+	reqToken, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respWithErr(writer, http.StatusBadRequest, "Couldn't find token", err)
+		return
+	}
+	// check user
+	user, err := cfg.dbQueries.GetUserFromToken(req.Context(), reqToken)
+	if err != nil {
+		respWithErr(writer, http.StatusUnauthorized, "Couldn't find user for refresh", err)
+		return
+	}
+	// generate new access token
+	accessToken, err := auth.MakeJWT(user.ID, cfg.jwtSecret, time.Hour)
+	if err != nil {
+		respWithErr(writer, http.StatusInternalServerError, "Couldn't create JWT", err)
+		return
+	}
+	// return values to client
+	respJSON(writer, http.StatusOK, response{
+		Token: accessToken,
+	})
+}
+
+func (cfg *apiConfig) handlerRevokeAccess(writer http.ResponseWriter, req *http.Request) {
+	// get refresh token from headers and check refresh token format
+	reqToken, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respWithErr(writer, http.StatusUnauthorized, "Couldn't find token", err)
+		return
+	}
+	err = cfg.dbQueries.RevokeToken(req.Context(), reqToken)
+	if err != nil {
+		respWithErr(writer, http.StatusUnauthorized, "Couldn't revoke session", err)
+		return
+	}
+
+	writer.WriteHeader(http.StatusNoContent)
 }

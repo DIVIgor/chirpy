@@ -25,6 +25,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
 	platform       string // should be set in .env file (dev or prod)
+	jwtSecret      string // set in .env
 }
 
 // Count requests to the server (main paths only)
@@ -70,9 +71,15 @@ func main() {
 		log.Fatal("Cannot connect to database:", err)
 	}
 
+	jwtSecret := os.Getenv("SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT secret is not set.")
+	}
+
 	apiCfg := &apiConfig{
 		dbQueries: database.New(db),
 		platform:  os.Getenv("PLATFORM"),
+		jwtSecret: jwtSecret,
 	}
 	mux := http.NewServeMux()
 
@@ -85,6 +92,8 @@ func main() {
 	// 	- account
 	mux.HandleFunc(apiPath("POST", "/users"), apiCfg.handlerCreateUser)
 	mux.HandleFunc(apiPath("POST", "/login"), apiCfg.handlerLogin)
+	mux.HandleFunc(apiPath("POST", "/refresh"), apiCfg.handlerRefreshAccess)
+	mux.HandleFunc(apiPath("POST", "/revoke"), apiCfg.handlerRevokeAccess)
 	// 	- posts
 	mux.HandleFunc(apiPath("POST", "/chirps"), apiCfg.handlerCreateChirp)
 	mux.HandleFunc(apiPath("GET", "/chirps"), apiCfg.handlerGetChirpList)

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/DIVIgor/chirpy/internal/auth"
 	"github.com/DIVIgor/chirpy/internal/database"
 
 	"github.com/google/uuid"
@@ -21,16 +22,27 @@ type Chirp struct {
 
 // Create chirp by message and user id (for now)
 func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.Request) {
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respWithErr(writer, http.StatusUnauthorized, "Couldn't find JWT", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respWithErr(writer, http.StatusUnauthorized, "Couldn't validate JWT", err)
+		return
+	}
+
 	type chirpPost struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	decoder := json.NewDecoder(req.Body)
 	data := chirpPost{}
-	err := decoder.Decode(&data)
+	err = decoder.Decode(&data)
 	if err != nil {
-		respWithErr(writer, http.StatusInternalServerError, "Couldn't decode the provided parameters:", err)
+		respWithErr(writer, http.StatusInternalServerError, "Couldn't decode parameters:", err)
 		return
 	}
 
@@ -42,7 +54,7 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.R
 	// save to DB
 	chirp, err := cfg.dbQueries.CreateChirp(req.Context(), database.CreateChirpParams{
 		Body:   validatedBody,
-		UserID: data.UserID,
+		UserID: userID,
 	})
 	if err != nil {
 		respWithErr(writer, http.StatusInternalServerError, "Couldn't save chirp to DB:", err)
