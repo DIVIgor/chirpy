@@ -91,6 +91,7 @@ func main() {
 	mux.HandleFunc(apiPath("GET", "/healthz"), handlerReadiness)
 	// 	- account
 	mux.HandleFunc(apiPath("POST", "/users"), apiCfg.handlerCreateUser)
+	mux.HandleFunc(apiPath("PUT", "/users"), apiCfg.handlerUpdateUser)
 	mux.HandleFunc(apiPath("POST", "/login"), apiCfg.handlerLogin)
 	mux.HandleFunc(apiPath("POST", "/refresh"), apiCfg.handlerRefreshAccess)
 	mux.HandleFunc(apiPath("POST", "/revoke"), apiCfg.handlerRevokeAccess)
