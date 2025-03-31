@@ -99,6 +99,7 @@ func main() {
 	mux.HandleFunc(apiPath("POST", "/chirps"), apiCfg.handlerCreateChirp)
 	mux.HandleFunc(apiPath("GET", "/chirps"), apiCfg.handlerGetChirpList)
 	mux.HandleFunc(apiPath("GET", "/chirps/{chirpID}"), apiCfg.handlerGetChirp)
+	mux.HandleFunc(apiPath("DELETE", "/chirps/{chirpID}"), apiCfg.handlerDeleteChirp)
 	// • Administration:
 	// 	- metrics
 	mux.HandleFunc(adminPath("GET", "/metrics"), apiCfg.handlerCountVisits)

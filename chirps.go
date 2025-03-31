@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/DIVIgor/chirpy/internal/auth"
@@ -112,4 +113,45 @@ func (cfg *apiConfig) handlerGetChirp(writer http.ResponseWriter, req *http.Requ
 		CreatedAt: chirp.CreatedAt,
 		UpdatedAt: chirp.UpdatedAt,
 	})
+}
+
+// Delete chirp by its ID and owner ID
+func (cfg *apiConfig) handlerDeleteChirp(writer http.ResponseWriter, req *http.Request) {
+	postID, err := uuid.Parse(req.PathValue("chirpID"))
+	if err != nil {
+		respWithErr(writer, http.StatusNotFound, "Chirp not found", err)
+		return
+	}
+
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		respWithErr(writer, http.StatusUnauthorized, "Couldn't find JWT", err)
+		return
+	}
+
+	userID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+	if err != nil {
+		respWithErr(writer, http.StatusUnauthorized, "Couldn't validate JWT", err)
+		return
+	}
+
+	post, err := cfg.dbQueries.DeleteChirp(req.Context(), database.DeleteChirpParams{
+		ID:     postID,
+		UserID: userID,
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows") {
+			respWithErr(writer, http.StatusNotFound, "Chirp not found", err)
+		} else {
+			respWithErr(writer, http.StatusInternalServerError, "Couldn't delete chirp", err)
+		}
+		return
+	}
+	// empty post means that user is not the owner of this chirp
+	if post == (database.Chirp{}) {
+		respWithErr(writer, http.StatusForbidden, "You can't delete this chirp", err)
+		return
+	}
+
+	writer.WriteHeader(http.StatusNoContent)
 }
