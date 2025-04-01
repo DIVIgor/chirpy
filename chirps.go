@@ -1,10 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/DIVIgor/chirpy/internal/auth"
@@ -140,7 +141,7 @@ func (cfg *apiConfig) handlerDeleteChirp(writer http.ResponseWriter, req *http.R
 		UserID: userID,
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "no rows") {
+		if errors.Is(err, sql.ErrNoRows) {
 			respWithErr(writer, http.StatusNotFound, "Chirp not found", err)
 		} else {
 			respWithErr(writer, http.StatusInternalServerError, "Couldn't delete chirp", err)
