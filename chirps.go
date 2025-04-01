@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/DIVIgor/chirpy/internal/auth"
@@ -72,14 +72,7 @@ func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.R
 	})
 }
 
-// Retrieve a full list of chirps (for now)
-func (cfg *apiConfig) handlerGetChirpList(writer http.ResponseWriter, req *http.Request) {
-	chirps, err := cfg.dbQueries.GetChirps(req.Context())
-	if err != nil {
-		log.Println("Couldn't retrieve chirps:", err)
-	}
-
-	chirpList := []Chirp{}
+func parseChirps(chirps []database.Chirp) (chirpList []Chirp) {
 	for _, chirp := range chirps {
 		chirpList = append(chirpList, Chirp{
 			ID:        chirp.ID,
@@ -87,6 +80,52 @@ func (cfg *apiConfig) handlerGetChirpList(writer http.ResponseWriter, req *http.
 			UserID:    chirp.UserID,
 			CreatedAt: chirp.CreatedAt,
 			UpdatedAt: chirp.UpdatedAt,
+		})
+	}
+
+	return
+}
+
+// Retrieve a full list of chirps (for now)
+func (cfg *apiConfig) handlerGetChirpList(writer http.ResponseWriter, req *http.Request) {
+	// check URL for author ID
+	authorIdStr := req.URL.Query().Get("author_id")
+
+	var chirpList []Chirp
+	if authorIdStr == "" {
+		// get full chirp list
+		chirps, err := cfg.dbQueries.GetChirps(req.Context())
+		if err != nil {
+			respWithErr(writer, http.StatusInternalServerError, "Couldn't retrieve chirps", err)
+			return
+		}
+
+		chirpList = parseChirps(chirps)
+	} else {
+		// get chirp list by author
+		authorId, err := uuid.Parse(authorIdStr)
+		if err != nil {
+			respWithErr(writer, http.StatusInternalServerError, "Couldn't parse user id", err)
+			return
+		}
+		chirps, err := cfg.dbQueries.GetUserChirps(req.Context(), authorId)
+		if err != nil {
+			respWithErr(writer, http.StatusInternalServerError, "Couldn't retrieve chirps", err)
+			return
+		}
+
+		chirpList = parseChirps(chirps)
+	}
+
+	// check URL for descending sorting query parameter
+	sorting := req.URL.Query().Get("sort")
+	if sorting == "desc" {
+		slices.SortFunc(chirpList, func(a, b Chirp) int {
+			if n := b.CreatedAt.Compare(a.CreatedAt); n != 0 {
+				return n
+			}
+			// if dates are equal compare by updated date
+			return b.UpdatedAt.Compare(a.UpdatedAt)
 		})
 	}
 
