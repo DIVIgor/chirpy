@@ -19,10 +19,11 @@ type userAuth struct {
 
 // Parsable user model for CRUD operations
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          uuid.UUID `json:"id"`
+	Email       string    `json:"email"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // Success response structure
@@ -50,7 +51,7 @@ func (cfg *apiConfig) handlerRefreshAccess(writer http.ResponseWriter, req *http
 		Token string `json:"token"`
 	}
 	// get refresh token from headers and check refresh token format
-	reqToken, err := auth.GetBearerToken(req.Header)
+	reqToken, err := auth.GetBearerToken(req.Header, auth.Bearer)
 	if err != nil {
 		respWithErr(writer, http.StatusBadRequest, "Couldn't find token", err)
 		return
@@ -75,7 +76,7 @@ func (cfg *apiConfig) handlerRefreshAccess(writer http.ResponseWriter, req *http
 
 // Get and check refresh token from headers and mark it as revoked in DB
 func (cfg *apiConfig) handlerRevokeAccess(writer http.ResponseWriter, req *http.Request) {
-	reqToken, err := auth.GetBearerToken(req.Header)
+	reqToken, err := auth.GetBearerToken(req.Header, auth.Bearer)
 	if err != nil {
 		respWithErr(writer, http.StatusUnauthorized, "Couldn't find token", err)
 		return
@@ -114,17 +115,18 @@ func (cfg *apiConfig) handlerCreateUser(writer http.ResponseWriter, req *http.Re
 
 	respJSON(writer, http.StatusCreated, response{
 		User: User{
-			ID:        user.ID,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
+			ID:          user.ID,
+			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
+			CreatedAt:   user.CreatedAt,
+			UpdatedAt:   user.UpdatedAt,
 		},
 	})
 }
 
 // Update email and/or password with provided credentials and valid token
 func (cfg *apiConfig) handlerUpdateUser(writer http.ResponseWriter, req *http.Request) {
-	token, err := auth.GetBearerToken(req.Header)
+	token, err := auth.GetBearerToken(req.Header, auth.Bearer)
 	if err != nil {
 		respWithErr(writer, http.StatusUnauthorized, "Couldn't find JWT", err)
 		return
@@ -160,10 +162,11 @@ func (cfg *apiConfig) handlerUpdateUser(writer http.ResponseWriter, req *http.Re
 
 	respJSON(writer, http.StatusOK, response{
 		User: User{
-			ID:        user.ID,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
+			ID:          user.ID,
+			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
+			CreatedAt:   user.CreatedAt,
+			UpdatedAt:   user.UpdatedAt,
 		},
 	})
 }
@@ -212,10 +215,11 @@ func (cfg *apiConfig) handlerLogin(writer http.ResponseWriter, req *http.Request
 
 	respJSON(writer, http.StatusOK, response{
 		User: User{
-			ID:        user.ID,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
+			ID:          user.ID,
+			Email:       user.Email,
+			IsChirpyRed: user.IsChirpyRed,
+			CreatedAt:   user.CreatedAt,
+			UpdatedAt:   user.UpdatedAt,
 		},
 		Token:        accessToken,
 		RefreshToken: savedToken.Token,

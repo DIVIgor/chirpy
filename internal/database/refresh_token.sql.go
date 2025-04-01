@@ -13,7 +13,7 @@ import (
 )
 
 const getUserFromToken = `-- name: GetUserFromToken :one
-SELECT users.id, users.email, users.created_at, users.updated_at, users.hashed_password
+SELECT users.id, users.email, users.created_at, users.updated_at, users.hashed_password, users.is_chirpy_red
 FROM users
 JOIN refresh_tokens
 ON users.id = refresh_tokens.user_id
@@ -31,6 +31,7 @@ func (q *Queries) GetUserFromToken(ctx context.Context, token string) (User, err
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.HashedPassword,
+		&i.IsChirpyRed,
 	)
 	return i, err
 }

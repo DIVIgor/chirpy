@@ -24,7 +24,7 @@ type Chirp struct {
 
 // Create chirp by message and user id (for now)
 func (cfg *apiConfig) handlerCreateChirp(writer http.ResponseWriter, req *http.Request) {
-	token, err := auth.GetBearerToken(req.Header)
+	token, err := auth.GetBearerToken(req.Header, auth.Bearer)
 	if err != nil {
 		respWithErr(writer, http.StatusUnauthorized, "Couldn't find JWT", err)
 		return
@@ -124,7 +124,7 @@ func (cfg *apiConfig) handlerDeleteChirp(writer http.ResponseWriter, req *http.R
 		return
 	}
 
-	token, err := auth.GetBearerToken(req.Header)
+	token, err := auth.GetBearerToken(req.Header, auth.Bearer)
 	if err != nil {
 		respWithErr(writer, http.StatusUnauthorized, "Couldn't find JWT", err)
 		return

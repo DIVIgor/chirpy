@@ -17,8 +17,9 @@ import (
 
 type TokenType string
 
-const TokenTypeAccess TokenType = "chirpy-access"
+const tokenTypeAccess TokenType = "chirpy-access"
 const Bearer string = "Bearer"
+const ApiBearer string = "ApiKey"
 
 // Hash password with Bcrypt
 func HashPassword(password string) (hashedPW string, err error) {
@@ -45,7 +46,7 @@ func CheckPasswordHash(password, hash string) (err error) {
 func MakeJWT(userID uuid.UUID, tokenSecret string, expiresIn time.Duration) (signedToken string, err error) {
 	signingKey := []byte(tokenSecret)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Issuer:    string(TokenTypeAccess),
+		Issuer:    string(tokenTypeAccess),
 		Subject:   userID.String(),
 		IssuedAt:  jwt.NewNumericDate(time.Now().UTC()),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiresIn).UTC()),
@@ -74,7 +75,7 @@ func ValidateJWT(tokenString, tokenSecret string) (userID uuid.UUID, err error) 
 	if err != nil {
 		return
 	}
-	if issuer != string(TokenTypeAccess) {
+	if issuer != string(tokenTypeAccess) {
 		return userID, errors.New("invalid issuer")
 	}
 
@@ -87,21 +88,21 @@ func ValidateJWT(tokenString, tokenSecret string) (userID uuid.UUID, err error) 
 }
 
 // Check request headers for token and validate it. Return cleaned token string.
-func GetBearerToken(headers http.Header) (tokenStr string, err error) {
+func GetBearerToken(headers http.Header, bearer string) (tokenStr string, err error) {
 	token := headers.Get("Authorization")
 	if len(token) == 0 {
 		return tokenStr, errors.New("no auth header included in request")
 	}
 
 	splittedToken := strings.Split(token, " ")
-	if len(splittedToken) < 2 || splittedToken[0] != Bearer || len(splittedToken[1]) == 0 {
+	if len(splittedToken) < 2 || splittedToken[0] != bearer || len(splittedToken[1]) == 0 {
 		return tokenStr, errors.New("wrong token format")
 	}
 
 	return splittedToken[1], err
 }
 
-// Create random refresh token
+// Create random 256-bit refresh token encoded in hex
 func MakeRefreshToken() (refreshToken string, err error) {
 	key := make([]byte, 32)
 	_, err = rand.Read(key)

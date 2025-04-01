@@ -24,8 +24,10 @@ func handlerReadiness(writer http.ResponseWriter, req *http.Request) {
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
-	platform       string // should be set in .env file (dev or prod)
-	jwtSecret      string // set in .env
+	// .env params
+	platform  string // dev or prod
+	jwtSecret string
+	polkaKey  string
 }
 
 // Count requests to the server (main paths only)
@@ -75,11 +77,16 @@ func main() {
 	if jwtSecret == "" {
 		log.Fatal("JWT secret is not set.")
 	}
+	polkaKey := os.Getenv("POLKA_KEY")
+	if polkaKey == "" {
+		log.Fatal("Polka key is not set.")
+	}
 
 	apiCfg := &apiConfig{
 		dbQueries: database.New(db),
 		platform:  os.Getenv("PLATFORM"),
 		jwtSecret: jwtSecret,
+		polkaKey:  polkaKey,
 	}
 	mux := http.NewServeMux()
 
@@ -100,6 +107,8 @@ func main() {
 	mux.HandleFunc(apiPath("GET", "/chirps"), apiCfg.handlerGetChirpList)
 	mux.HandleFunc(apiPath("GET", "/chirps/{chirpID}"), apiCfg.handlerGetChirp)
 	mux.HandleFunc(apiPath("DELETE", "/chirps/{chirpID}"), apiCfg.handlerDeleteChirp)
+	// 	- webhooks
+	mux.HandleFunc(apiPath("POST", "/polka/webhooks"), apiCfg.handlerUpgradeUserPlan)
 	// • Administration:
 	// 	- metrics
 	mux.HandleFunc(adminPath("GET", "/metrics"), apiCfg.handlerCountVisits)

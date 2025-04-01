@@ -158,7 +158,7 @@ func TestGetBearerToken(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			tokenString, err := GetBearerToken(testCase.headers)
+			tokenString, err := GetBearerToken(testCase.headers, Bearer)
 			if (err != nil) != testCase.expectedErr {
 				t.Errorf("GetBearerToken() error = %v, expectedErr %v", err, testCase.expectedErr)
 				return

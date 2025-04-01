@@ -16,5 +16,11 @@ SET email = $2,
 WHERE id = $1
 RETURNING *;
 
+-- name: UpgradeUserPlan :one
+UPDATE users
+SET is_chirpy_red = TRUE
+WHERE id = $1
+RETURNING *;
+
 -- name: ClearUsers :exec
 DELETE FROM users;
